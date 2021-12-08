@@ -1,0 +1,80 @@
+#include"HOG.h"
+using namespace cv::ml;
+
+#define NUM 5
+int main()
+{
+	// Set up training data
+	//! [setup1]-데이터셋 설정
+	int labels[NUM] = {-1, 1, 1, -1,1};//1: 클레스점 T/F 
+	Mat img[NUM];// { "1.jpg","2.jpg","3.jpg","4.jpg" };
+	Mat hog[NUM];
+	Mat trainingData;
+	for (int i = 0; i < NUM; i++)
+	{
+		String fs;
+		fs = format("img/B_%d.PNG", i + 1);
+		
+		img[i] = imread(fs, 0);
+		resize(img[i], img[i], Size(400, 800));
+		hog[i] = HOGbr(img[i]);
+	}
+	for (int i = 0; i < NUM; i++)
+	{
+		Mat tmp = hog[i].reshape(1, 1);
+		trainingData.push_back(tmp);
+	}
+	Mat labelsMat;
+	for (int i = 0; i < NUM; i++) 
+		labelsMat.push_back(labels[i]);
+
+	trainingData.convertTo(trainingData, CV_32F);
+
+	/*FileStorage fs("svmdata.txt", FileStorage::WRITE);
+	fs << "traindata" << trainingData;
+	fs << "label" << labels;
+	fs.release();*/
+
+
+
+	Ptr<SVM> svm = SVM::create();
+	svm->setType(SVM::C_SVC);
+	svm->setKernel(SVM::LINEAR);
+	svm->setGamma(1);
+	svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 1000, 1e-6));
+	svm->train(trainingData, ml::ROW_SAMPLE, labelsMat);
+	svm->save("svmtrain.xml");
+
+
+
+
+
+	// Show the decision regions given by the SVM-영역 분류
+	//! [show]
+	
+
+	//	/////////////TRAN TARGET//////////////////////////////////////////////////
+	//
+	Mat res;
+	Mat src = imread("1.jpg", 0);
+	resize(src, src, Size(400, 800));
+	imshow("org", src);
+	Mat target_hog = HOGbr(src);
+
+	Mat one_row = target_hog.reshape(1, 1);
+	one_row.convertTo(one_row, CV_32F);
+	svm->predict(one_row, res);//결과
+
+	//res.convertTo(res, CV_8U);
+	imshow("res", target_hog);
+	cout << endl << "result=" << res << endl;
+
+	if (res.at<float>(0) == 1)
+		cout << "TTTTTTTT" << endl;
+	else
+		cout << "FFFFFFFF" << endl;
+	cv::waitKey();
+
+	return 0;
+
+}
